@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Packing Lists</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: var(--hub-bg, #f9fafb);
+      --surface: var(--hub-surface, #ffffff);
+      --border: var(--hub-border, #e5e7eb);
+      --border-mid: var(--hub-border, #d1d5db);
+      --text: var(--hub-text, #111827);
+      --muted: var(--hub-text-muted, #6b7280);
+      --accent: var(--hub-primary, #111827);
+      --accent-hover: var(--hub-primary-hover, #374151);
+      --accent-fg: var(--hub-primary-fg, #ffffff);
+      --radius: var(--hub-radius, 10px);
+      --green: #047857; --green-soft: #d1fae5;
+      --red: #b91c1c; --red-soft: #fee2e2;
+      --blue: #1d4ed8; --blue-soft: #dbeafe;
+      --shadow: 0 1px 3px rgba(15, 23, 42, .07);
+    }
+    body {
+      min-height: 100vh; background: var(--bg); color: var(--text);
+      font-family: var(--hub-font, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+      font-size: var(--hub-font-size, 15px); line-height: 1.5;
+    }
+    .app { max-width: 720px; margin: 0 auto; padding: 16px; }
+    .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    h1 { font-size: 1.35rem; line-height: 1.2; }
+    h2 { font-size: .95rem; }
+    .muted { color: var(--muted); }
+    .tiny { font-size: .78rem; }
+    .stack { display: grid; gap: 8px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      border: 1px solid transparent; border-radius: 8px; padding: 8px 12px;
+      font: inherit; font-size: .86rem; font-weight: 700; cursor: pointer;
+      min-height: 38px; background: var(--accent); color: var(--accent-fg);
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn:disabled { opacity: .48; cursor: default; }
+    .btn-ghost { background: transparent; color: var(--text); border-color: var(--border-mid); }
+    .btn-ghost:hover { background: rgba(127,127,127,.08); }
+    .btn-danger { background: var(--red-soft); color: var(--red); }
+    .btn-sm { min-height: 31px; padding: 5px 10px; font-size: .78rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px; }
+    .back { background: none; border: 0; color: var(--muted); cursor: pointer; font: inherit; font-size: .82rem; font-weight: 700; padding: 0; margin-bottom: 8px; }
+    .back:hover { color: var(--text); }
+    .list-card {
+      display: flex; align-items: center; gap: 12px; padding: 13px 14px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: var(--shadow); cursor: pointer; width: 100%; text-align: left; font: inherit; color: var(--text);
+    }
+    .list-card:hover { border-color: var(--accent); }
+    .list-body { flex: 1; min-width: 0; }
+    .list-title { font-weight: 750; }
+    .list-meta { color: var(--muted); font-size: .8rem; }
+    .progress-wrap { flex-shrink: 0; text-align: right; display: grid; gap: 4px; justify-items: end; min-width: 90px; }
+    .bar { width: 90px; height: 7px; background: var(--border); border-radius: 999px; overflow: hidden; }
+    .bar > span { display: block; height: 100%; background: var(--green); border-radius: 999px; }
+    .pill {
+      display: inline-flex; align-items: center; min-height: 20px; padding: 1px 8px;
+      border-radius: 999px; background: var(--blue-soft); color: var(--blue); font-size: .72rem; font-weight: 800;
+    }
+    .cat-head { margin: 14px 2px 6px; font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+    .item {
+      display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    }
+    .item.packed .item-name { text-decoration: line-through; color: var(--muted); }
+    .item input[type="checkbox"] { width: 19px; height: 19px; accent-color: var(--green); cursor: pointer; flex-shrink: 0; }
+    .item-body { flex: 1; min-width: 0; }
+    .item-name { font-size: .9rem; font-weight: 600; }
+    .item-meta { color: var(--muted); font-size: .75rem; }
+    .icon-btn { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: .85rem; padding: 3px; }
+    .icon-btn:hover { color: var(--red); }
+    .inline-add { display: flex; gap: 6px; margin-top: 12px; }
+    .inline-add input { flex: 1; }
+    .inline-add select { width: auto; }
+    .empty { color: var(--muted); text-align: center; padding: 30px 16px; }
+    .error { background: var(--red-soft); color: var(--red); padding: 9px 12px; border-radius: 8px; margin-bottom: 10px; font-size: .86rem; }
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.42); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal { background: var(--surface); border-radius: 14px; padding: 22px; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,.25); max-height: 92vh; overflow-y: auto; }
+    .modal h2 { font-size: 1.05rem; margin-bottom: 16px; }
+    .form { display: grid; gap: 12px; }
+    .field { display: grid; gap: 5px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    label { font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 800; }
+    input, select, textarea {
+      width: 100%; border: 1.5px solid var(--border-mid); border-radius: 8px;
+      padding: 9px 11px; font: inherit; background: var(--surface); color: var(--text);
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+    .modal-actions { display: flex; gap: 8px; margin-top: 6px; justify-content: flex-end; }
+    .modal-left { margin-right: auto; }
+    @media (max-width: 520px) { .grid2 { grid-template-columns: 1fr; } .inline-add { flex-wrap: wrap; } }
+  </style>
+  <base href="/run/packing-lists/">
+</head>
+<body>
+<div class="app">
+  <div id="root" class="empty">Loading…</div>
+</div>
+
+<script type="module">
+import { esc, hubConfirm } from "/hub-sdk.js";
+import {
+  CATEGORIES, categoryMeta, TEMPLATES, progress, groupByCategory,
+  sortedLists, tripCountdown,
+} from "./logic.js";
+
+const CONTEXT = window.__CONTEXT_URL ?? "";
+const DB = window.__DB_URL ?? "";
+const HUB_MEMBER = window.__CURRENT_MEMBER ?? null;
+
+let members = [];
+let memberMap = new Map();
+let me = null;
+let lists = [];
+let items = [];
+let openListId = null;
+let error = "";
+let modalEl = null;
+
+function nowIso() { return new Date().toISOString(); }
+function memberName(id) { return memberMap.get(id)?.name ?? ""; }
+
+/* ── DB helper ─────────────────────────────────────────────────────────────── */
+async function db(sql, params = []) {
+  if (!DB) return { rows: [] };
+  const res = await fetch(DB, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sql, params }),
+  });
+  const json = await res.json();
+  if (json.error) throw new Error(json.error);
+  return json;
+}
+
+/* ── Loading ───────────────────────────────────────────────────────────────── */
+async function loadMembers() {
+  if (!CONTEXT) {
+    members = [
+      { id: "demo-1", name: "Alex", role: "adult" },
+      { id: "demo-3", name: "Casey", role: "child" },
+    ];
+  } else {
+    try {
+      const res = await fetch(`${CONTEXT}?keys=family.members`);
+      members = ((await res.json())["family.members"]) ?? [];
+    } catch { members = []; }
+  }
+  memberMap = new Map(members.map((m) => [m.id, m]));
+  me = HUB_MEMBER ?? members[0] ?? { id: "guest", name: "Guest", role: "adult" };
+}
+
+async function loadData() {
+  if (!DB) {
+    lists = [{ id: "l1", title: "Maine, August", trip_date: "2026-08-07", notes: "", archived: 0, created_by: "demo-1", created_at: nowIso(), updated_at: nowIso() }];
+    items = [
+      { id: "i1", list_id: "l1", name: "Swimsuits", category: "clothes", qty: 4, assigned_member_id: "", packed: 1, packed_by: "demo-1", sort_order: 0, created_by: "demo-1", created_at: nowIso() },
+      { id: "i2", list_id: "l1", name: "Sunscreen", category: "toiletries", qty: 2, assigned_member_id: "demo-1", packed: 0, packed_by: "", sort_order: 1, created_by: "demo-1", created_at: nowIso() },
+      { id: "i3", list_id: "l1", name: "Sand toys", category: "kids", qty: 1, assigned_member_id: "demo-3", packed: 0, packed_by: "", sort_order: 2, created_by: "demo-3", created_at: nowIso() },
+    ];
+    return;
+  }
+  const [l, i] = await Promise.all([
+    db("SELECT id, title, trip_date, notes, archived, created_by, created_at, updated_at FROM app_packing_lists__lists WHERE archived = 0 ORDER BY trip_date"),
+    db("SELECT id, list_id, name, category, qty, assigned_member_id, packed, packed_by, sort_order, created_by, created_at FROM app_packing_lists__items LIMIT 2000"),
+  ]);
+  lists = l.rows ?? [];
+  items = i.rows ?? [];
+}
+
+async function refresh() {
+  error = "";
+  try {
+    await Promise.all([loadMembers(), loadData()]);
+    if (openListId && !lists.some((l) => l.id === openListId)) openListId = null;
+    render();
+  } catch (e) { error = e.message; render(); }
+}
+
+function showError(msg) { error = msg; render(); }
+
+/* ── Mutations ─────────────────────────────────────────────────────────────── */
+async function saveList(fields, existingId, template) {
+  const now = nowIso();
+  if (existingId) {
+    const idx = lists.findIndex((l) => l.id === existingId);
+    const prev = idx !== -1 ? lists[idx] : null;
+    if (idx !== -1) lists[idx] = { ...lists[idx], ...fields, updated_at: now };
+    closeModal(); render();
+    try {
+      await db("UPDATE app_packing_lists__lists SET title=?, trip_date=?, notes=?, updated_at=? WHERE id=?",
+        [fields.title, fields.trip_date, fields.notes, now, existingId]);
+    } catch (e) { if (idx !== -1 && prev) lists[idx] = prev; showError(e.message); }
+    return;
+  }
+  const row = { id: crypto.randomUUID(), ...fields, archived: 0, created_by: me.id, created_at: now, updated_at: now };
+  lists = [...lists, row];
+  openListId = row.id;
+  closeModal(); render();
+  try {
+    await db("INSERT INTO app_packing_lists__lists (id, title, trip_date, notes, archived, created_by, created_at, updated_at) VALUES (?,?,?,?,0,?,?,?)",
+      [row.id, row.title, row.trip_date, row.notes, row.created_by, now, now]);
+    if (template && TEMPLATES[template]) {
+      for (const [n, tpl] of TEMPLATES[template].items.entries()) {
+        // Sequential inserts keep sort order stable; template lists are short.
+        await addItem(row.id, tpl.name, tpl.category, 1, "", n, { silent: true });
+      }
+      render();
+    }
+  } catch (e) {
+    lists = lists.filter((l) => l.id !== row.id);
+    openListId = null;
+    showError(e.message);
+  }
+}
+
+async function archiveList(id) {
+  const ok = await hubConfirm({ message: "Archive this list?", description: "Trip over? You can rebuild from a template next time.", confirmLabel: "Archive", destructive: true });
+  if (!ok) return;
+  const prev = lists;
+  lists = lists.filter((l) => l.id !== id);
+  if (openListId === id) openListId = null;
+  closeModal(); render();
+  try { await db("UPDATE app_packing_lists__lists SET archived = 1 WHERE id = ?", [id]); }
+  catch (e) { lists = prev; showError(e.message); }
+}
+
+async function addItem(listId, name, category, qty, assignedId, sortOrder, opts = {}) {
+  const row = {
+    id: crypto.randomUUID(), list_id: listId, name, category, qty: qty || 1,
+    assigned_member_id: assignedId || "", packed: 0, packed_by: "",
+    sort_order: sortOrder ?? items.filter((i) => i.list_id === listId).length,
+    created_by: me.id, created_at: nowIso(),
+  };
+  items = [...items, row];
+  if (!opts.silent) render();
+  try {
+    await db("INSERT INTO app_packing_lists__items (id, list_id, name, category, qty, assigned_member_id, packed, packed_by, sort_order, created_by, created_at) VALUES (?,?,?,?,?,?,0,'',?,?,?)",
+      [row.id, row.list_id, row.name, row.category, row.qty, row.assigned_member_id, row.sort_order, row.created_by, row.created_at]);
+  } catch (e) {
+    items = items.filter((i) => i.id !== row.id);
+    if (!opts.silent) showError(e.message); else throw e;
+  }
+}
+
+async function togglePacked(id) {
+  const idx = items.findIndex((i) => i.id === id);
+  if (idx === -1) return;
+  const prev = items[idx];
+  const nowPacked = Number(prev.packed) ? 0 : 1;
+  items[idx] = { ...prev, packed: nowPacked, packed_by: nowPacked ? me.id : "" };
+  render();
+  try {
+    await db("UPDATE app_packing_lists__items SET packed=?, packed_by=? WHERE id=?", [nowPacked, nowPacked ? me.id : "", id]);
+  } catch (e) { items[idx] = prev; showError(e.message); }
+}
+
+async function deleteItem(id) {
+  const prev = items;
+  items = items.filter((i) => i.id !== id);
+  render();
+  try { await db("DELETE FROM app_packing_lists__items WHERE id = ?", [id]); }
+  catch (e) { items = prev; showError(e.message); }
+}
+
+/* ── Rendering ─────────────────────────────────────────────────────────────── */
+function renderOverview() {
+  const active = sortedLists(lists).map((l) => ({ ...l, _progress: progress(items.filter((i) => i.list_id === l.id)) }));
+  return `
+    <div class="topbar">
+      <div>
+        <h1>🧳 Packing Lists</h1>
+        <p class="muted tiny">Build the list together — nothing left behind.</p>
+      </div>
+      <button class="btn" data-add-list>+ New list</button>
+    </div>
+    ${error ? `<div class="error">${esc(error)}</div>` : ""}
+    ${active.length ? `<div class="stack">${active.map((l) => `
+      <button class="list-card" data-open="${esc(l.id)}">
+        <div class="list-body">
+          <div class="list-title">${esc(l.title)}</div>
+          <div class="list-meta">${l._progress.total} item${l._progress.total === 1 ? "" : "s"}${l.notes ? ` · ${esc(l.notes)}` : ""}</div>
+        </div>
+        <div class="progress-wrap">
+          ${tripCountdown(l.trip_date) ? `<span class="pill">${esc(tripCountdown(l.trip_date))}</span>` : ""}
+          <div class="bar"><span style="width:${l._progress.pct}%"></span></div>
+          <span class="tiny muted">${l._progress.packed}/${l._progress.total} packed</span>
+        </div>
+      </button>`).join("")}</div>`
+      : `<div class="card empty">No trips coming up. Start a list — from scratch or a template.</div>`}
+  `;
+}
+
+function renderList(list) {
+  const listItems = items.filter((i) => i.list_id === list.id);
+  const groups = groupByCategory(listItems);
+  const prog = progress(listItems);
+  const catOptions = CATEGORIES.map((c) => `<option value="${c.value}">${c.icon} ${c.label}</option>`).join("");
+  return `
+    <button class="back" data-back>← All lists</button>
+    <div class="topbar">
+      <div>
+        <h1>${esc(list.title)}</h1>
+        <p class="muted tiny">
+          ${tripCountdown(list.trip_date) ? `${esc(tripCountdown(list.trip_date))} · ` : ""}${prog.packed}/${prog.total} packed
+          ${list.notes ? ` · ${esc(list.notes)}` : ""}
+        </p>
+      </div>
+      <button class="btn btn-ghost btn-sm" data-edit-list="${esc(list.id)}">Edit</button>
+    </div>
+    ${error ? `<div class="error">${esc(error)}</div>` : ""}
+    ${groups.length ? groups.map((g) => `
+      <div class="cat-head">${g.meta.icon} ${esc(g.meta.label)}</div>
+      <div class="stack">${g.items.map((i) => `
+        <div class="item ${Number(i.packed) ? "packed" : ""}">
+          <input type="checkbox" ${Number(i.packed) ? "checked" : ""} data-toggle="${esc(i.id)}" aria-label="Packed" />
+          <div class="item-body">
+            <div class="item-name">${esc(i.name)}${Number(i.qty) > 1 ? ` <span class="muted">×${esc(String(Number(i.qty)))}</span>` : ""}</div>
+            ${i.assigned_member_id && memberName(i.assigned_member_id) ? `<div class="item-meta">${esc(memberName(i.assigned_member_id))} packs this</div>` : ""}
+          </div>
+          <button class="icon-btn" data-delete-item="${esc(i.id)}" title="Remove">✕</button>
+        </div>`).join("")}</div>`).join("")
+      : `<div class="card empty tiny">Empty list — add the first item below.</div>`}
+    <form class="inline-add" id="item-form">
+      <input id="item-name" placeholder="Add an item…" />
+      <select id="item-cat">${catOptions}</select>
+      <select id="item-assign">
+        <option value="">Anyone</option>
+        ${members.map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("")}
+      </select>
+      <button type="submit" class="btn btn-sm">Add</button>
+    </form>
+  `;
+}
+
+function render() {
+  const root = document.getElementById("root");
+  root.className = "app-root";
+  const list = openListId ? lists.find((l) => l.id === openListId) : null;
+  root.innerHTML = list ? renderList(list) : renderOverview();
+  document.getElementById("item-form")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const input = document.getElementById("item-name");
+    const name = input.value.trim();
+    if (!name || !openListId) return;
+    const cat = document.getElementById("item-cat").value;
+    const assign = document.getElementById("item-assign").value;
+    input.value = "";
+    addItem(openListId, name, cat, 1, assign).catch((err) => showError(err.message));
+    document.getElementById("item-name")?.focus();
+  });
+}
+
+/* ── Modal ─────────────────────────────────────────────────────────────────── */
+function openModal(html) {
+  closeModal();
+  modalEl = document.createElement("div");
+  modalEl.className = "overlay";
+  modalEl.innerHTML = `<div class="modal">${html}</div>`;
+  modalEl.addEventListener("click", (e) => { if (e.target === modalEl) closeModal(); });
+  document.body.appendChild(modalEl);
+}
+function closeModal() { modalEl?.remove(); modalEl = null; }
+
+function openListEditor(existing) {
+  const l = existing ?? null;
+  const tplOptions = [`<option value="">Blank list</option>`,
+    ...Object.entries(TEMPLATES).map(([k, t]) => `<option value="${k}">${t.label}</option>`)].join("");
+  openModal(`
+    <h2>${l ? "Edit list" : "New packing list"}</h2>
+    <form class="form" id="list-form">
+      <div class="field"><label for="l-title">Trip</label><input id="l-title" data-autofocus value="${esc(l?.title ?? "")}" placeholder="Maine, August" required /></div>
+      <div class="grid2">
+        <div class="field"><label for="l-date">Departure <span class="muted" style="text-transform:none">(optional)</span></label><input id="l-date" type="date" value="${esc(l?.trip_date ?? "")}" /></div>
+        ${!l ? `<div class="field"><label for="l-template">Start from</label><select id="l-template">${tplOptions}</select></div>` : ""}
+      </div>
+      <div class="field"><label for="l-notes">Notes</label><textarea id="l-notes">${esc(l?.notes ?? "")}</textarea></div>
+      <div class="modal-actions">
+        ${l ? `<button type="button" class="btn btn-danger modal-left" data-archive-list="${esc(l.id)}">Archive</button>` : ""}
+        <button type="button" class="btn btn-ghost" data-cancel>Cancel</button>
+        <button type="submit" class="btn">${l ? "Save" : "Create"}</button>
+      </div>
+    </form>`);
+  modalEl.querySelector("[data-autofocus]")?.focus();
+  modalEl.querySelector("#list-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const title = document.getElementById("l-title").value.trim();
+    if (!title) { document.getElementById("l-title").focus(); return; }
+    const btn = modalEl?.querySelector('button[type="submit"]');
+    if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+    saveList({
+      title,
+      trip_date: document.getElementById("l-date").value,
+      notes: document.getElementById("l-notes").value.trim(),
+    }, l?.id ?? null, l ? null : document.getElementById("l-template")?.value || null)
+      .catch((err) => showError(err.message));
+  });
+}
+
+/* ── Events ────────────────────────────────────────────────────────────────── */
+document.addEventListener("click", (e) => {
+  const toggle = e.target.closest("input[data-toggle]");
+  if (toggle) { togglePacked(toggle.getAttribute("data-toggle")).catch((err) => showError(err.message)); return; }
+  const t = e.target.closest("button");
+  if (!t) return;
+  if (t.hasAttribute("data-open")) { openListId = t.getAttribute("data-open"); render(); return; }
+  if (t.hasAttribute("data-back")) { openListId = null; render(); return; }
+  if (t.hasAttribute("data-cancel")) { closeModal(); return; }
+  if (t.hasAttribute("data-add-list")) { openListEditor(null); return; }
+  if (t.hasAttribute("data-edit-list")) { openListEditor(lists.find((l) => l.id === t.getAttribute("data-edit-list"))); return; }
+  if (t.hasAttribute("data-archive-list")) { archiveList(t.getAttribute("data-archive-list")); return; }
+  if (t.hasAttribute("data-delete-item")) { deleteItem(t.getAttribute("data-delete-item")).catch((err) => showError(err.message)); return; }
+});
+
+refresh();
+</script>
+</body>
+</html>

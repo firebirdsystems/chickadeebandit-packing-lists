@@ -1,0 +1,30 @@
+{
+  "id": "packing-lists",
+  "name": "Packing Lists",
+  "version": "1.0.0",
+  "description": "Shared packing checklists for trips — build the list together, assign items to people, start from a template, and watch the bags fill up.",
+  "entrypoint": "index.html",
+  "runtime": "static",
+  "category": "family",
+  "tags": ["travel", "packing", "checklist", "trips", "vacation"],
+  "icon": "🧳",
+  "data_access": {
+    "reads": ["family.members"],
+    "writes": []
+  },
+  "permissions": {
+    "default_audience": "everyone",
+    "requires_approval": false
+  },
+  "storage": "db",
+  "db_plaintext_columns": ["trip_date"],
+  "nav": { "label": "Packing" },
+  "resource_limits": {
+    "max_db_bytes": 52428800
+  },
+  "ai_access": {
+    "allowed": true,
+    "mode": "read",
+    "db_exports": ["lists", "unpacked_items"]
+  }
+}
