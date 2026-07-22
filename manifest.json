@@ -1,5 +1,6 @@
 {
   "id": "packing-lists",
+  "contexts": ["household", "shared_space"],
   "name": "Packing Lists",
   "version": "1.0.0",
   "description": "Shared packing checklists for trips — build the list together, assign items to people, start from a template, and watch the bags fill up.",
