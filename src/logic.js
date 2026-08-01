@@ -111,3 +111,13 @@ export function tripCountdown(iso, from = new Date()) {
   if (days < 30) return `In ${days} days`;
   return `In ${Math.round(days / 7)} weeks`;
 }
+
+/**
+ * Fields the in-app search matches against (see hub-sdk `searchMatch`).
+ * The trip notes count as well as the title: a packing list is found
+ * again as "the one for the ski week", which is what people write in
+ * the notes rather than in the title.
+ */
+export function searchableFields(item) {
+  return [item.title, item.notes, item.trip_date];
+}

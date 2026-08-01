@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  categoryMeta, TEMPLATES, progress, groupByCategory, sortedLists, tripCountdown,
+  categoryMeta, TEMPLATES, progress, groupByCategory, sortedLists, tripCountdown, searchableFields,
 } from "../src/logic.js";
 
 const FROM = new Date(2026, 6, 12, 9, 0, 0); // July 12, 2026 local
@@ -55,5 +55,12 @@ describe("templates", () => {
         expect(categoryMeta(item.category).value).toBe(item.category);
       }
     }
+  });
+});
+
+describe("searchableFields", () => {
+  it("matches on the trip notes, not just the list title", () => {
+    const fields = searchableFields({ title: "February", notes: "ski week, Val Thorens", trip_date: "2026-02-14" });
+    expect(fields).toContain("ski week, Val Thorens");
   });
 });
