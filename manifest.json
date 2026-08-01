@@ -40,6 +40,22 @@
       ]
     },
   "nav": { "label": "Packing" },
+  "agenda": {
+    "kind": "task",
+    "label": "Trip",
+    "source": {
+      "kind": "sql",
+      "query": "SELECT l.id AS id, l.title AS title, l.trip_date AS when_at, CASE WHEN COUNT(i.id) = 0 THEN 1 ELSE 0 END AS done FROM app_packing_lists__lists l LEFT JOIN app_packing_lists__items i ON i.list_id = l.id AND i.packed = 0 WHERE l.archived = 0 AND l.trip_date = :today GROUP BY l.id ORDER BY l.created_at LIMIT 20"
+    }
+  },
+  "glance": {
+    "source": {
+      "kind": "sql",
+      "query": "SELECT title AS title, trip_date AS leaves_on FROM app_packing_lists__lists WHERE archived = 0 AND trip_date <> '' AND trip_date >= :today ORDER BY trip_date LIMIT 3"
+    },
+    "display": { "template": "list", "title": "title", "when": "leaves_on" },
+    "ambient_card": "countdown"
+  },
   "resource_limits": {
     "max_db_bytes": 52428800
   },
