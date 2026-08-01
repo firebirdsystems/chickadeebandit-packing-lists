@@ -126,7 +126,12 @@ let error = "";
 let modalEl = null;
 
 function nowIso() { return new Date().toISOString(); }
-function memberName(id) { return memberMap.get(id)?.name ?? ""; }
+// An assignment survives its member: assigned_member_id is NOT NULL with '' as
+// the "anyone packs it" sentinel, so member_references can only "keep" it (a
+// "null" would abort roster removal, a "delete" would drop a shared item from
+// everyone's list). A set-but-unresolvable id is therefore a departed member,
+// and it renders as such rather than silently reading as unassigned.
+function memberName(id) { return memberMap.get(id)?.name ?? "Former member"; }
 
 /* ── DB helper ─────────────────────────────────────────────────────────────── */
 async function db(sql, params = []) {
@@ -324,7 +329,7 @@ function renderList(list) {
           <input type="checkbox" ${Number(i.packed) ? "checked" : ""} data-toggle="${esc(i.id)}" aria-label="Packed" />
           <div class="item-body">
             <div class="item-name">${esc(i.name)}${Number(i.qty) > 1 ? ` <span class="muted">×${esc(String(Number(i.qty)))}</span>` : ""}</div>
-            ${i.assigned_member_id && memberName(i.assigned_member_id) ? `<div class="item-meta">${esc(memberName(i.assigned_member_id))} packs this</div>` : ""}
+            ${i.assigned_member_id ? `<div class="item-meta">${esc(memberName(i.assigned_member_id))} packs this</div>` : ""}
           </div>
           <button class="icon-btn" data-delete-item="${esc(i.id)}" title="Remove">✕</button>
         </div>`).join("")}</div>`).join("")

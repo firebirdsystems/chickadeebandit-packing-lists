@@ -19,6 +19,26 @@
   },
   "storage": "db",
   "db_plaintext_columns": ["trip_date"],
+    "member_references": {
+      "lists": {
+        "column": "created_by",
+        "on_removed": "keep"
+      },
+      "items": [
+        {
+          "column": "assigned_member_id",
+          "on_removed": "keep"
+        },
+        {
+          "column": "packed_by",
+          "on_removed": "keep"
+        },
+        {
+          "column": "created_by",
+          "on_removed": "keep"
+        }
+      ]
+    },
   "nav": { "label": "Packing" },
   "resource_limits": {
     "max_db_bytes": 52428800
