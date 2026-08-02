@@ -18,6 +18,42 @@
     "requires_approval": false
   },
   "storage": "db",
+  "automation_actions": {
+    "create_list": {
+      "title": "Start a packing list",
+      "description": "Create a packing list when another app's event fires — a trip added to the planner, a reservation confirmed, an event with travel.",
+      "params": {
+        "created_by": {
+          "type": "member",
+          "label": "Who it's for",
+          "required": true
+        },
+        "title": {
+          "type": "text",
+          "label": "List title",
+          "required": true
+        }
+      },
+      "dedupe": {
+        "table": "lists",
+        "column": "source_event_id"
+      },
+      "steps": [
+        {
+          "op": "insert",
+          "table": "lists",
+          "values": {
+            "id": "$uuid",
+            "title": ":title",
+            "created_by": ":created_by",
+            "created_at": "$now",
+            "updated_at": "$now",
+            "source_event_id": "$event_id"
+          }
+        }
+      ]
+    }
+  },
   "db_plaintext_columns": ["trip_date"],
     "member_references": {
       "lists": {
@@ -39,6 +75,10 @@
         }
       ]
     },
+  "publishes": ["packing_list.created"],
+  "publish_acls": {
+    "packing_list.created": { "require_role": "member" }
+  },
   "nav": { "label": "Packing" },
   "agenda": {
     "kind": "task",

@@ -123,6 +123,22 @@ const CONTEXT = window.__CONTEXT_URL ?? "";
 const DB = window.__DB_URL ?? "";
 const HUB_MEMBER = window.__CURRENT_MEMBER ?? null;
 
+const EVENTS = window.__EVENTS_URL ?? "";
+
+async function publishEvent(type, subjectId, payload = {}) {
+  if (!EVENTS) return;
+  try {
+    await fetch(EVENTS, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, subject_id: subjectId, payload }),
+    });
+  } catch {
+    // Best-effort: the row is already written, so a failed publish is not fatal.
+  }
+}
+
+
 let members = [];
 let memberMap = new Map();
 let me = null;
@@ -228,6 +244,10 @@ async function saveList(fields, existingId, template) {
       }
       render();
     }
+    await publishEvent("packing_list.created", row.id, {
+      trip_date: row.trip_date,
+      created_by: row.created_by,
+    });
   } catch (e) {
     lists = lists.filter((l) => l.id !== row.id);
     openListId = null;
