@@ -2,7 +2,7 @@
   "id": "packing-lists",
   "contexts": ["household", "shared_space"],
   "name": "Packing Lists",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Shared packing checklists for trips — build the list together, assign items to people, start from a template, and watch the bags fill up.",
   "entrypoint": "index.html",
   "runtime": "static",
@@ -54,6 +54,19 @@
       ]
     }
   },
+  "suggested_automations": [
+    {
+      "title": "Start a packing list when a trip is created",
+      "description": "Every trip starts with a packing list of the same name, ready before anyone thinks to make one. The list belongs to whoever created the trip.",
+      "trigger_event": "trip.created",
+      "target_app_id": "packing-lists",
+      "action_id": "create_list",
+      "param_map": {
+        "title": { "kind": "payload_field", "value": "title" },
+        "created_by": { "kind": "payload_field", "value": "created_by" }
+      }
+    }
+  ],
   "db_plaintext_columns": ["trip_date"],
     "member_references": {
       "lists": {
