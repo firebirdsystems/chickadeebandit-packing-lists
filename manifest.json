@@ -18,6 +18,10 @@
     "requires_approval": false
   },
   "storage": "db",
+  "preload": {
+    "lists": {"sql": "SELECT id, title, trip_date, notes, archived, created_by, created_at, updated_at FROM app_packing_lists__lists WHERE archived = 0 ORDER BY trip_date"},
+    "items": {"sql": "SELECT id, list_id, name, category, qty, assigned_member_id, packed, packed_by, sort_order, created_by, created_at FROM app_packing_lists__items LIMIT 2000"}
+  },
   "automation_actions": {
     "create_list": {
       "title": "Start a packing list",
