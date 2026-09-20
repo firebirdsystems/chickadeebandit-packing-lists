@@ -1,5 +1,7 @@
 # Packing Lists
 
+A [Chickadee Bandit](https://chickadeebandit.com/app-library/packing-lists) app.
+
 Shared packing checklists for trips — build the list together, assign items to
 people, start from a template (weekend / beach / camping / flight), and watch
 the bags fill up.
