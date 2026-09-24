@@ -1,0 +1,116 @@
+{
+  "scenarios": [
+    {
+      "name": "lists are household-collaborative: a child can add to and check off items on a list a parent made",
+      "members": { "parent": "adult", "kid": "child" },
+      "steps": [
+        {
+          "action": "db",
+          "as": "parent",
+          "sql": "INSERT INTO app_packing_lists__lists (id, title, trip_date, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+          "params": ["l1", "Maine, August", "2026-08-01", "{{parent}}", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"],
+          "expect": { "status": 200 }
+        },
+        {
+          "action": "db",
+          "as": "parent",
+          "sql": "INSERT INTO app_packing_lists__items (id, list_id, name, category, qty, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          "params": ["i1", "l1", "Sunscreen", "toiletries", 1, "{{parent}}", "2026-01-01T00:00:00Z"],
+          "expect": { "status": 200 }
+        },
+        {
+          "action": "db",
+          "as": "kid",
+          "sql": "INSERT INTO app_packing_lists__items (id, list_id, name, category, qty, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          "params": ["i2", "l1", "Socks", "clothes", 5, "{{kid}}", "2026-01-01T00:00:00Z"],
+          "expect": { "status": 200 }
+        },
+        {
+          "action": "db",
+          "as": "kid",
+          "sql": "UPDATE app_packing_lists__items SET packed = 1, packed_by = ? WHERE id = ?",
+          "params": ["{{kid}}", "i1"],
+          "expect": { "status": 200 }
+        },
+        {
+          "action": "db",
+          "as": "parent",
+          "sql": "SELECT id, packed FROM app_packing_lists__items ORDER BY id",
+          "expect": { "status": 200, "rowCount": 2, "rowsContain": [{ "id": "i1", "packed": 1 }, { "id": "i2", "packed": 0 }] }
+        }
+      ]
+    },
+    {
+      "name": "an item quantity must be positive",
+      "members": { "parent": "adult" },
+      "steps": [
+        {
+          "action": "seedRaw",
+          "sql": "INSERT INTO app_packing_lists__lists (id, title, created_by, created_at, updated_at) VALUES ('l1', 'Camping', 'x', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')"
+        },
+        {
+          "action": "db",
+          "as": "parent",
+          "sql": "INSERT INTO app_packing_lists__items (id, list_id, name, qty, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+          "params": ["i0", "l1", "Tent", 0, "{{parent}}", "2026-01-01T00:00:00Z"],
+          "expect": { "status": 400, "errorIncludes": "CHECK constraint failed" }
+        },
+        {
+          "action": "db",
+          "as": "parent",
+          "sql": "INSERT INTO app_packing_lists__items (id, list_id, name, qty, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+          "params": ["i1", "l1", "Tent", 1, "{{parent}}", "2026-01-01T00:00:00Z"],
+          "expect": { "status": 200 }
+        },
+        {
+          "action": "db",
+          "as": "parent",
+          "sql": "SELECT id FROM app_packing_lists__items",
+          "expect": { "status": 200, "rowCount": 1, "rowsContain": [{ "id": "i1" }] }
+        }
+      ]
+    },
+    {
+      "name": "the AI exports return active lists (dated trips first) and only unpacked items",
+      "members": { "parent": "adult" },
+      "steps": [
+        {
+          "action": "seedRaw",
+          "sql": "INSERT INTO app_packing_lists__lists (id, title, trip_date, archived, created_by, created_at, updated_at) VALUES ('l_undated', 'Someday', '', 0, 'x', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'), ('l_dated', 'Beach', '2026-07-04', 0, 'x', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'), ('l_old', 'Old trip', '2025-07-04', 1, 'x', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')"
+        },
+        {
+          "action": "seedRaw",
+          "sql": "INSERT INTO app_packing_lists__items (id, list_id, name, packed, created_by, created_at) VALUES ('i_todo', 'l_dated', 'Towels', 0, 'x', '2026-01-01T00:00:00Z'), ('i_done', 'l_dated', 'Hat', 1, 'x', '2026-01-01T00:00:00Z')"
+        },
+        {
+          "action": "named",
+          "as": "parent",
+          "kind": "query",
+          "name": "lists",
+          "expect": { "status": 200, "rowCount": 2, "rowsContain": [{ "id": "l_dated", "title": "Beach" }, { "id": "l_undated" }] }
+        },
+        {
+          "action": "named",
+          "as": "parent",
+          "kind": "query",
+          "name": "unpacked_items",
+          "expect": { "status": 200, "rowCount": 1, "rowsContain": [{ "id": "i_todo", "name": "Towels" }] }
+        }
+      ]
+    },
+    {
+      "name": "any member, a child included, may announce a new packing list",
+      "members": { "kid": "child" },
+      "steps": [
+        {
+          "action": "publish",
+          "as": "kid",
+          "type": "packing_list.created",
+          "subject_id": "l1",
+          "payload": { "title": "Beach" },
+          "expect": { "status": 201 }
+        }
+      ]
+    }
+  ]
+}
