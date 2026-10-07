@@ -113,7 +113,7 @@
 </div>
 
 <script type="module">
-import { esc, hubConfirm, searchMatch } from "/hub-sdk.js";
+import { esc, hubConfirm, searchMatch, glyph } from "/hub-sdk.js";
 import {
   CATEGORIES, categoryMeta, TEMPLATES, progress, groupByCategory,
   sortedLists, tripCountdown, searchableFields,
@@ -331,7 +331,7 @@ function renderOverview() {
   return `
     <div class="topbar">
       <div>
-        <h1>🧳 Packing Lists</h1>
+        <h1>${glyph("suitcase")} Packing Lists</h1>
         <p class="muted tiny">Build the list together — nothing left behind.</p>
       </div>
       <button class="btn" data-add-list>+ New list</button>
@@ -346,7 +346,7 @@ function renderList(list) {
   const listItems = items.filter((i) => i.list_id === list.id);
   const groups = groupByCategory(listItems);
   const prog = progress(listItems);
-  const catOptions = CATEGORIES.map((c) => `<option value="${c.value}">${c.icon} ${c.label}</option>`).join("");
+  const catOptions = CATEGORIES.map((c) => `<option value="${c.value}">${c.label}</option>`).join("");
   return `
     <button class="back" data-back>← All lists</button>
     <div class="topbar">
@@ -361,7 +361,7 @@ function renderList(list) {
     </div>
     ${error ? `<div class="error">${esc(error)}</div>` : ""}
     ${groups.length ? groups.map((g) => `
-      <div class="cat-head">${g.meta.icon} ${esc(g.meta.label)}</div>
+      <div class="cat-head">${glyph(g.meta.glyph)} ${esc(g.meta.label)}</div>
       <div class="stack">${g.items.map((i) => `
         <div class="item ${Number(i.packed) ? "packed" : ""}">
           <input type="checkbox" ${Number(i.packed) ? "checked" : ""} data-toggle="${esc(i.id)}" aria-label="Packed" />
@@ -369,7 +369,7 @@ function renderList(list) {
             <div class="item-name">${esc(i.name)}${Number(i.qty) > 1 ? ` <span class="muted">×${esc(String(Number(i.qty)))}</span>` : ""}</div>
             ${i.assigned_member_id ? `<div class="item-meta">${esc(memberName(i.assigned_member_id))} packs this</div>` : ""}
           </div>
-          <button class="icon-btn" data-delete-item="${esc(i.id)}" title="Remove">✕</button>
+          <button class="icon-btn" data-delete-item="${esc(i.id)}" title="Remove" aria-label="Remove">${glyph("close", { accent: "currentColor" })}</button>
         </div>`).join("")}</div>`).join("")
       : `<div class="card empty tiny">Empty list — add the first item below.</div>`}
     <form class="inline-add" id="item-form">

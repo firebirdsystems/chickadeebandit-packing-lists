@@ -4,19 +4,19 @@
  */
 
 export const CATEGORIES = [
-  { value: "clothes",    label: "Clothes",    icon: "👕" },
-  { value: "toiletries", label: "Toiletries", icon: "🪥" },
-  { value: "gear",       label: "Gear",       icon: "🎒" },
-  { value: "documents",  label: "Documents",  icon: "🛂" },
-  { value: "food",       label: "Food",       icon: "🥨" },
-  { value: "kids",       label: "Kids",       icon: "🧸" },
-  { value: "other",      label: "Other",      icon: "📦" },
+  { value: "clothes",    label: "Clothes",    glyph: "shirt" },
+  { value: "toiletries", label: "Toiletries", glyph: "bottle" },
+  { value: "gear",       label: "Gear",       glyph: "toolbox" },
+  { value: "documents",  label: "Documents",  glyph: "document" },
+  { value: "food",       label: "Food",       glyph: "meal" },
+  { value: "kids",       label: "Kids",       glyph: "stroller" },
+  { value: "other",      label: "Other",      glyph: "box" },
 ];
 
 const CAT_BY_VALUE = new Map(CATEGORIES.map((c) => [c.value, c]));
 
 export function categoryMeta(v) {
-  return CAT_BY_VALUE.get(v) ?? { value: "other", label: "Other", icon: "📦" };
+  return CAT_BY_VALUE.get(v) ?? { value: "other", label: "Other", glyph: "box" };
 }
 
 /** Starter templates: [{ name, category, qty? }]. */
