@@ -224,42 +224,42 @@ async function refresh() {
 function showError(msg) { error = msg; render(); }
 
 /* ── Mutations ─────────────────────────────────────────────────────────────── */
+// The list's own write goes first: the editor stays open until the hub has it,
+// and a refused write throws to the form's submit handler, which says so there
+// and leaves what was typed in place.
 async function saveList(fields, existingId, template) {
   const now = nowIso();
   if (existingId) {
+    await db("UPDATE app_packing_lists__lists SET title=?, trip_date=?, notes=?, updated_at=? WHERE id=?",
+      [fields.title, fields.trip_date, fields.notes, now, existingId]);
     const idx = lists.findIndex((l) => l.id === existingId);
-    const prev = idx !== -1 ? lists[idx] : null;
     if (idx !== -1) lists[idx] = { ...lists[idx], ...fields, updated_at: now };
     closeModal(); render();
-    try {
-      await db("UPDATE app_packing_lists__lists SET title=?, trip_date=?, notes=?, updated_at=? WHERE id=?",
-        [fields.title, fields.trip_date, fields.notes, now, existingId]);
-    } catch (e) { if (idx !== -1 && prev) lists[idx] = prev; showError(e.message); }
     return;
   }
   const row = { id: crypto.randomUUID(), ...fields, archived: 0, created_by: me.id, created_at: now, updated_at: now };
+  await db("INSERT INTO app_packing_lists__lists (id, title, trip_date, notes, archived, created_by, created_at, updated_at) VALUES (?,?,?,?,0,?,?,?)",
+    [row.id, row.title, row.trip_date, row.notes, row.created_by, now, now]);
   lists = [...lists, row];
   openListId = row.id;
   closeModal(); render();
-  try {
-    await db("INSERT INTO app_packing_lists__lists (id, title, trip_date, notes, archived, created_by, created_at, updated_at) VALUES (?,?,?,?,0,?,?,?)",
-      [row.id, row.title, row.trip_date, row.notes, row.created_by, now, now]);
-    if (template && TEMPLATES[template]) {
+  // The list exists from here on: a template item that will not save is said
+  // as that, and never takes the list back off the screen.
+  if (template && TEMPLATES[template]) {
+    try {
       for (const [n, tpl] of TEMPLATES[template].items.entries()) {
         // Sequential inserts keep sort order stable; template lists are short.
         await addItem(row.id, tpl.name, tpl.category, 1, "", n, { silent: true });
       }
       render();
+    } catch {
+      showError("The list was created, but not every template item could be added.");
     }
-    await publishEvent("packing_list.created", row.id, {
-      trip_date: row.trip_date,
-      created_by: row.created_by,
-    });
-  } catch (e) {
-    lists = lists.filter((l) => l.id !== row.id);
-    openListId = null;
-    showError(e.message);
   }
+  await publishEvent("packing_list.created", row.id, {
+    trip_date: row.trip_date,
+    created_by: row.created_by,
+  });
 }
 
 async function archiveList(id) {
@@ -270,7 +270,7 @@ async function archiveList(id) {
   if (openListId === id) openListId = null;
   closeModal(); render();
   try { await db("UPDATE app_packing_lists__lists SET archived = 1 WHERE id = ?", [id]); }
-  catch (e) { lists = prev; showError(e.message); }
+  catch (e) { console.error(e); lists = prev; showError("Couldn’t archive the list — try again."); }
 }
 
 async function addItem(listId, name, category, qty, assignedId, sortOrder, opts = {}) {
@@ -287,7 +287,15 @@ async function addItem(listId, name, category, qty, assignedId, sortOrder, opts 
       [row.id, row.list_id, row.name, row.category, row.qty, row.assigned_member_id, row.sort_order, row.created_by, row.created_at]);
   } catch (e) {
     items = items.filter((i) => i.id !== row.id);
-    if (!opts.silent) showError(e.message); else throw e;
+    if (opts.silent) throw e;
+    showError("Couldn’t add that item — try again.");
+    // The field was cleared when the row was drawn: put back what was typed.
+    const input = document.getElementById("item-name");
+    if (input && !input.value && openListId === listId) {
+      input.value = name;
+      document.getElementById("item-cat").value = category;
+      document.getElementById("item-assign").value = row.assigned_member_id;
+    }
   }
 }
 
@@ -300,7 +308,7 @@ async function togglePacked(id) {
   render();
   try {
     await db("UPDATE app_packing_lists__items SET packed=?, packed_by=? WHERE id=?", [nowPacked, nowPacked ? me.id : "", id]);
-  } catch (e) { items[idx] = prev; showError(e.message); }
+  } catch (e) { console.error(e); items[idx] = prev; showError("Couldn’t update that item — try again."); }
 }
 
 async function deleteItem(id) {
@@ -308,7 +316,7 @@ async function deleteItem(id) {
   items = items.filter((i) => i.id !== id);
   render();
   try { await db("DELETE FROM app_packing_lists__items WHERE id = ?", [id]); }
-  catch (e) { items = prev; showError(e.message); }
+  catch (e) { console.error(e); items = prev; showError("Couldn’t delete that item — try again."); }
 }
 
 /* ── Rendering ─────────────────────────────────────────────────────────────── */
@@ -413,7 +421,7 @@ function render() {
     const cat = document.getElementById("item-cat").value;
     const assign = document.getElementById("item-assign").value;
     input.value = "";
-    addItem(openListId, name, cat, 1, assign).catch((err) => showError(err.message));
+    addItem(openListId, name, cat, 1, assign).catch((err) => { console.error(err); showError("Couldn’t add that item — try again."); });
     document.getElementById("item-name")?.focus();
   });
 }
@@ -453,21 +461,33 @@ function openListEditor(existing) {
     e.preventDefault();
     const title = document.getElementById("l-title").value.trim();
     if (!title) { document.getElementById("l-title").focus(); return; }
-    const btn = modalEl?.querySelector('button[type="submit"]');
+    const form = modalEl;
+    const btn = form.querySelector('button[type="submit"]');
     if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+    form.querySelector(".error")?.remove();
     saveList({
       title,
       trip_date: document.getElementById("l-date").value,
       notes: document.getElementById("l-notes").value.trim(),
     }, l?.id ?? null, l ? null : document.getElementById("l-template")?.value || null)
-      .catch((err) => showError(err.message));
+      .catch(() => {
+        // Refused: the editor is still open as typed. Say so there and give
+        // the button back.
+        if (modalEl !== form) { showError("Couldn’t save the list — try again."); return; }
+        if (btn) { btn.disabled = false; btn.textContent = l ? "Save" : "Create"; }
+        const line = document.createElement("div");
+        line.className = "error";
+        line.setAttribute("role", "alert");
+        line.textContent = "Couldn’t save — try again.";
+        form.querySelector(".modal-actions").before(line);
+      });
   });
 }
 
 /* ── Events ────────────────────────────────────────────────────────────────── */
 document.addEventListener("click", (e) => {
   const toggle = e.target.closest("input[data-toggle]");
-  if (toggle) { togglePacked(toggle.getAttribute("data-toggle")).catch((err) => showError(err.message)); return; }
+  if (toggle) { togglePacked(toggle.getAttribute("data-toggle")).catch((err) => { console.error(err); showError("Couldn’t update that item — try again."); }); return; }
   const t = e.target.closest("button");
   if (!t) return;
   if (t.matches('[data-testid="load-retry"]')) { refresh(); return; }
@@ -477,7 +497,7 @@ document.addEventListener("click", (e) => {
   if (t.hasAttribute("data-add-list")) { openListEditor(null); return; }
   if (t.hasAttribute("data-edit-list")) { openListEditor(lists.find((l) => l.id === t.getAttribute("data-edit-list"))); return; }
   if (t.hasAttribute("data-archive-list")) { archiveList(t.getAttribute("data-archive-list")); return; }
-  if (t.hasAttribute("data-delete-item")) { deleteItem(t.getAttribute("data-delete-item")).catch((err) => showError(err.message)); return; }
+  if (t.hasAttribute("data-delete-item")) { deleteItem(t.getAttribute("data-delete-item")).catch((err) => { console.error(err); showError("Couldn’t delete that item — try again."); }); return; }
 });
 
 refresh();
