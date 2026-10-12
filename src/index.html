@@ -81,6 +81,8 @@
     .inline-add input { flex: 1; }
     .inline-add select { width: auto; }
     .empty { color: var(--muted); text-align: center; padding: 30px 16px; }
+    .load-error { margin: 0 0 12px; padding: 10px 14px; border-radius: 10px; background: var(--hub-tint-danger, #fee2e2); color: var(--hub-tint-danger-fg, #b91c1c); font-size: 0.9rem; display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+    .load-error-retry { background: none; border: 1px solid currentColor; border-radius: 8px; padding: 5px 10px; font: inherit; font-weight: 600; color: inherit; cursor: pointer; flex-shrink: 0; }
     .error { background: var(--red-soft); color: var(--red); padding: 9px 12px; border-radius: 8px; margin-bottom: 10px; font-size: .86rem; }
     .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.42); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
     .modal { background: var(--surface); border-radius: 14px; padding: 22px; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,.25); max-height: 92vh; overflow-y: auto; }
@@ -147,6 +149,7 @@ let items = [];
 let openListId = null;
 let searchQ = "";       // in-app search (see logic.js searchableFields)
 let error = "";
+let loadFailed = false; // the first load failed: the lists are unknown, not empty
 let modalEl = null;
 
 function nowIso() { return new Date().toISOString(); }
@@ -165,8 +168,8 @@ async function db(sql, params = []) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ sql, params }),
   });
-  const json = await res.json();
-  if (json.error) throw new Error(json.error);
+  const json = await res.json().catch(() => null);
+  if (!res.ok || !json || typeof json !== "object" || json.error) throw new Error(json?.error || "Couldn’t reach the hub. Try again.");
   return json;
 }
 
@@ -178,10 +181,13 @@ async function loadMembers() {
       { id: "demo-3", name: "Casey", role: "child" },
     ];
   } else {
-    try {
-      const res = await fetch(`${CONTEXT}?keys=family.members`);
-      members = ((await res.json())["family.members"]) ?? [];
-    } catch { members = []; }
+    // A roster that cannot be read is a failed load, not an empty household.
+    const res = await fetch(`${CONTEXT}?keys=family.members`);
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json || typeof json !== "object") throw new Error("Couldn’t reach the hub. Try again.");
+    // A 200 that names the roster in `$errors` is the hub failing to read it.
+    if (Array.isArray(json.$errors) && json.$errors.includes("family.members")) throw new Error("Couldn’t reach the hub. Try again.");
+    members = json["family.members"] ?? [];
   }
   memberMap = new Map(members.map((m) => [m.id, m]));
   me = HUB_MEMBER ?? members[0] ?? { id: "guest", name: "Guest", role: "adult" };
@@ -210,8 +216,9 @@ async function refresh() {
   try {
     await Promise.all([loadMembers(), loadData()]);
     if (openListId && !lists.some((l) => l.id === openListId)) openListId = null;
+    loadFailed = false;
     render();
-  } catch (e) { error = e.message; render(); }
+  } catch { loadFailed = true; render(); }
 }
 
 function showError(msg) { error = msg; render(); }
@@ -323,7 +330,7 @@ function renderTripList() {
           <span class="tiny muted">${l._progress.packed}/${l._progress.total} packed</span>
         </div>
       </button>`).join("")}</div>`
-      : `<div class="card empty">${searchQ ? `No lists match "${esc(searchQ)}".` : "No trips coming up. Start a list — from scratch or a template."}</div>`}
+      : loadFailed ? "" : `<div class="card empty">${searchQ ? `No lists match "${esc(searchQ)}".` : "No trips coming up. Start a list — from scratch or a template."}</div>`}
   `;
 }
 
@@ -334,8 +341,9 @@ function renderOverview() {
         <h1>${glyph("suitcase")} Packing Lists</h1>
         <p class="muted tiny">Build the list together — nothing left behind.</p>
       </div>
-      <button class="btn" data-add-list>+ New list</button>
+      ${loadFailed ? "" : `<button class="btn" data-add-list>+ New list</button>`}
     </div>
+    ${loadFailed ? `<div class="load-error" data-testid="load-error" role="alert"><span>Couldn’t load the packing lists.</span> <button type="button" class="load-error-retry" data-testid="load-retry">Try again</button></div>` : ""}
     ${error ? `<div class="error">${esc(error)}</div>` : ""}
     ${lists.length ? `<div class="search-row"><input id="search" class="search-input" type="search" placeholder="Search lists…" aria-label="Search lists" value="${esc(searchQ)}" /></div>` : ""}
     <div id="trip-list">${renderTripList()}</div>
@@ -462,6 +470,7 @@ document.addEventListener("click", (e) => {
   if (toggle) { togglePacked(toggle.getAttribute("data-toggle")).catch((err) => showError(err.message)); return; }
   const t = e.target.closest("button");
   if (!t) return;
+  if (t.matches('[data-testid="load-retry"]')) { refresh(); return; }
   if (t.hasAttribute("data-open")) { openListId = t.getAttribute("data-open"); render(); return; }
   if (t.hasAttribute("data-back")) { openListId = null; render(); return; }
   if (t.hasAttribute("data-cancel")) { closeModal(); return; }
