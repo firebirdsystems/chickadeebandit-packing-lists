@@ -113,9 +113,6 @@
     "display": { "template": "list", "title": "title", "when": "leaves_on" },
     "ambient_card": "countdown"
   },
-  "resource_limits": {
-    "max_db_bytes": 52428800
-  },
   "ai_access": {
     "allowed": true,
     "mode": "read",
