@@ -10,7 +10,7 @@
 -- sort by date in SQL and in the AI export. `category` and `completed`-style
 -- integers are already unencrypted; item names stay encrypted at rest.
 CREATE TABLE IF NOT EXISTS app_packing_lists__lists (
-  id         TEXT PRIMARY KEY,
+  id         TEXT NOT NULL PRIMARY KEY,
   title      TEXT NOT NULL,               -- "Maine, August"
   trip_date  TEXT NOT NULL DEFAULT '',    -- ISO YYYY-MM-DD (departure)
   notes      TEXT NOT NULL DEFAULT '',
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS app_packing_lists__lists (
 );
 
 CREATE TABLE IF NOT EXISTS app_packing_lists__items (
-  id                 TEXT PRIMARY KEY,
+  id                 TEXT NOT NULL PRIMARY KEY,
   list_id            TEXT NOT NULL,
   name               TEXT NOT NULL,               -- "Sunscreen"
   category           TEXT NOT NULL DEFAULT 'other', -- clothes|toiletries|gear|documents|food|kids|other
